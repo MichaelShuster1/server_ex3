@@ -399,7 +399,7 @@ string getPath(string httpRequest)
 	int end=httpRequest.find('?');
 
 	if (end == -1)
-		end = httpRequest.find(start, ' ');
+		end = httpRequest.find(' ', start);
 
 	return httpRequest.substr(start+1, end-start);
 }
@@ -408,7 +408,7 @@ string getPath(string httpRequest)
 string getParameter(string httpRequest) 
 {
 	int start = httpRequest.find('?')+1;
-	if (start == -1)
+	if (start == 0)
 		return "";
 
 	int end = httpRequest.find(' ',start);
