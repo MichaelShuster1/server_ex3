@@ -369,13 +369,31 @@ void sendMessage(int index)
 	char sendBuff[1000];
 
 	SOCKET msgSocket = sockets[index].id;
-	if (sockets[index].sendSubType == GET) {
-		string httpResponse = "HTTP/1.1 200 OK\r\n"
-			"Content-Type: text/html\r\n"
-			"Content-Length: 24\r\n"
-			"\r\n"
-			"<h1> Hello, World! </h1>";
-		strcpy(sendBuff , httpResponse.c_str());
+	Request request = parseRequest(sockets[index].buffer);
+
+	if (sockets[index].sendSubType == SEND_TIME)
+	{
+		// Answer client's request by the current time string.
+
+		// Get the current time.
+		time_t timer;
+		time(&timer);
+		// Parse the current time to printable string.
+		strcpy(sendBuff, ctime(&timer));
+		sendBuff[strlen(sendBuff) - 1] = 0; //to remove the new-line from the created string
+	}
+	else if (sockets[index].sendSubType == SEND_SECONDS)
+	{
+		// Answer client's request by the current time in seconds.
+
+		// Get the current time.
+		time_t timer;
+		time(&timer);
+		// Convert the number to string.
+		_itoa((int)timer, sendBuff, 10);
+	}
+	else if (sockets[index].sendSubType == GET) {
+
 	}
 	else if (sockets[index].sendSubType == PUT) {
 
@@ -462,6 +480,31 @@ string getBody(string httpRequest)
 	}
 
 	return "";
+}
+
+string getFullPath(Request request) {
+	string fullPath;
+
+	if (request.queryParameter != "") {
+		int index = request.queryParameter.find("?");
+		if (index != -1) {
+			string queryKey = request.queryParameter.substr(0, index);
+			string queryValue = request.queryParameter.substr(index + 1);
+
+			if (queryKey == "lang" && (queryValue == "en" || queryValue == "fr" || queryValue == "he"))
+				fullPath = "C:\temp\\" + queryValue + "\\" + request.path;
+			else
+				fullPath = "400";
+
+		}
+		else
+			fullPath = "400";
+	}
+
+	if (request.path == "")
+		fullPath = "400";
+
+	return fullPath;
 }
 
 
