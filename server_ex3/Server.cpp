@@ -13,8 +13,16 @@ struct SocketState
 	int	recv;			// Receiving?
 	int	send;			// Sending?
 	int sendSubType;	// Sending sub-type
-	char buffer[128];
+	char buffer[1000];
 	int len;
+};
+
+struct Request
+{
+	string method;
+	string queryParameter;
+	string path;
+	string body;
 };
 
 const int TIME_PORT = 27015;
@@ -39,6 +47,7 @@ int socketsCount = 0;
 
 void main()
 {
+
 	// Initialize Winsock (Windows Sockets).
 
 	// Create a WSADATA object called wsaData.
