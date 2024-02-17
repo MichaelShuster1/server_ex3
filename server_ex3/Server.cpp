@@ -40,6 +40,11 @@ void removeSocket(int index);
 void acceptConnection(int index);
 void receiveMessage(int index);
 void sendMessage(int index);
+struct Request parseRequest(string httpRequest);
+string getMethod(string httpRequest);
+string getPath(string httpRequest);
+string getParameter(string httpRequest);
+string getBody(string httpRequest);
 
 struct SocketState sockets[MAX_SOCKETS] = { 0 };
 int socketsCount = 0;
@@ -272,6 +277,7 @@ void acceptConnection(int index)
 void receiveMessage(int index)
 {
 	SOCKET msgSocket = sockets[index].id;
+	struct Request request;
 
 	int len = sockets[index].len;
 	int bytesRecv = recv(msgSocket, &sockets[index].buffer[len], sizeof(sockets[index].buffer) - len, 0);
@@ -298,7 +304,8 @@ void receiveMessage(int index)
 
 		if (sockets[index].len > 0)
 		{
-			if (strncmp(sockets[index].buffer, "TimeString", 10) == 0)
+			request = parseRequest(sockets[index].buffer);
+			if (request.method=="GET")
 			{
 				sockets[index].send = SEND;
 				sockets[index].sendSubType = SEND_TIME;
@@ -364,4 +371,60 @@ void sendMessage(int index)
 
 	sockets[index].send = IDLE;
 }
+
+
+
+struct Request parseRequest(string httpRequest)
+{
+	struct Request request;
+
+	request.method = getMethod(httpRequest);
+	request.path = getPath(httpRequest);
+	request.queryParameter = getParameter(httpRequest);
+	request.body = getBody(httpRequest);
+
+	return request;
+}
+
+
+string getMethod(string httpRequest) 
+{
+	int firstSpace = httpRequest.find(' ');
+	return httpRequest.substr(0, firstSpace);
+}
+
+string getPath(string httpRequest) 
+{
+	int start = httpRequest.find('/');
+	int end=httpRequest.find('?');
+
+	if (end == -1)
+		end = httpRequest.find(start, ' ');
+
+	return httpRequest.substr(start+1, end-start);
+}
+
+
+string getParameter(string httpRequest) 
+{
+	int start = httpRequest.find('?')+1;
+	if (start == -1)
+		return "";
+
+	int end = httpRequest.find(' ',start);
+	return httpRequest.substr(start, end-start);
+}
+
+
+string getBody(string httpRequest)
+{
+	int pos = httpRequest.find("\r\n\r\n");
+
+	if (pos != -1) {
+		return httpRequest.substr(pos + 4);
+	}
+
+	return "";
+}
+
 
