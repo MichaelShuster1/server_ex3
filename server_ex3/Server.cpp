@@ -7,6 +7,7 @@ using namespace std;
 #include <string.h>
 #include <time.h>
 #include <vector>
+#include <fstream>
 
 struct SocketState
 {
@@ -65,6 +66,8 @@ string getBody(string httpRequest);
 string getFullPath(Request httpRequest);
 Response getGETResponse(Request request);
 string createResponse(Response response);
+Response getPutResponse(Request request);
+void resetRequestsBuffer(int index);
 
 struct SocketState sockets[MAX_SOCKETS] = { 0 };
 int socketsCount = 0;
@@ -393,7 +396,8 @@ void sendMessage(int index)
 		response=getGETResponse(request);
 	}
 	else if (sockets[index].sendSubType == PUT) {
-
+		response = getPutResponse(request);
+		resetRequestsBuffer(index);
 	}
 	else if (sockets[index].sendSubType == POST) {
 		cout << "\n" <<request.body<< "\n";
@@ -561,6 +565,55 @@ Response getGETResponse(Request request)
 	return response;
 }
 
+Response getPutResponse(Request request) {
+
+	string fullPath = getFullPath(request);
+	Response response;
+	response.codeStatus = "200";
+	response.messageStatus = "OK";
+	response.body = "";
+	response.headers.push_back("Content-Type: text/html");
+	response.headers.push_back("Content-Length: 0");
+
+	if (fullPath == "400") {
+		response.codeStatus = "400";
+		response.messageStatus = "Bad Request";
+		return response;
+	}
+
+	if (request.body == "") {
+		response.codeStatus = "204";
+		response.messageStatus = "No Content";
+	}
+
+	ifstream checkFile;
+	checkFile.open(fullPath);
+	if (!checkFile) {
+		response.codeStatus = "201";
+		response.messageStatus = "Created";
+	}
+	else 
+		checkFile.close();
+
+
+
+	ofstream file(fullPath, std::ios::out);
+
+	if (!file.is_open()) {
+		response.codeStatus = "500";
+		response.messageStatus = "Internal Server Error";
+		return response;
+	}
+
+	
+	file << request.body;
+	file.close();
+	
+
+	return response;
+
+}
+
 
 string createResponse(Response response) {
 	string httpResponse = "HTTP/1.1 ";
@@ -576,5 +629,11 @@ string createResponse(Response response) {
 	httpResponse += "\r\n";
 	httpResponse += response.body;
 	return httpResponse;
+}
+
+
+void resetRequestsBuffer(int index) {
+	memset(sockets[index].buffer, '\0', sizeof(sockets[index].buffer));
+	sockets[index].len = 0;
 }
 
