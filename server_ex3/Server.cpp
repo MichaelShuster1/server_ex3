@@ -371,6 +371,8 @@ void sendMessage(int index)
 	char sendBuff[1000];
 
 	SOCKET msgSocket = sockets[index].id;
+	Request request = parseRequest(sockets[index].buffer);
+
 	if (sockets[index].sendSubType == SEND_TIME)
 	{
 		// Answer client's request by the current time string.
@@ -480,6 +482,31 @@ string getBody(string httpRequest)
 	}
 
 	return "";
+}
+
+string getFullPath(Request request) {
+	string fullPath;
+
+	if (request.queryParameter != "") {
+		int index = request.queryParameter.find("?");
+		if (index != -1) {
+			string queryKey = request.queryParameter.substr(0, index);
+			string queryValue = request.queryParameter.substr(index + 1);
+
+			if (queryKey == "lang" && (queryValue == "en" || queryValue == "fr" || queryValue == "he"))
+				fullPath = "C:\temp\\" + queryValue + "\\" + request.path;
+			else
+				fullPath = "400";
+
+		}
+		else
+			fullPath = "400";
+	}
+
+	if (request.path == "")
+		fullPath = "400";
+
+	return fullPath;
 }
 
 
