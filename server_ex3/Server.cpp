@@ -8,6 +8,7 @@ using namespace std;
 #include <time.h>
 #include <vector>
 #include <fstream>
+#include <sstream>
 
 struct SocketState
 {
@@ -70,6 +71,8 @@ Response getDELETEResponse(Request request);
 string createResponse(Response response);
 Response getPutResponse(Request request);
 void resetRequestsBuffer(int index);
+Response getHeadResponse(Request request);
+Response getTraceResponse(string request);
 
 struct SocketState sockets[MAX_SOCKETS] = { 0 };
 int socketsCount = 0;
@@ -405,12 +408,15 @@ void sendMessage(int index)
 		response = getDELETEResponse(request);
 	}
 	else if (sockets[index].sendSubType == HEAD) {
+		response = getHeadResponse(request);
 
 	}
 	else if (sockets[index].sendSubType == OPTIONS) {
 
 	}
 	else if (sockets[index].sendSubType == TRACE) {
+		string buffer(sockets[index].buffer);
+		response = getTraceResponse(buffer);
 
 	}
 
@@ -667,6 +673,26 @@ string createResponse(Response response) {
 	return httpResponse;
 }
 
+
+Response getHeadResponse(Request request)
+{
+	Response response = getGETResponse(request);
+	response.body = "";
+	return response;
+}
+
+Response getTraceResponse(string request) {
+	Response response;
+	response.codeStatus = "200";
+	response.messageStatus = "OK";
+	response.body = request;
+	response.headers.push_back("Content-Type: message/http");
+	ostringstream oss;
+	oss << "Content-Length: " << request.length();
+	response.headers.push_back(oss.str());
+
+	return response;
+}
 
 void resetRequestsBuffer(int index) {
 	memset(sockets[index].buffer, '\0', sizeof(sockets[index].buffer));
