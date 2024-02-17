@@ -6,6 +6,7 @@ using namespace std;
 #include <winsock2.h>
 #include <string.h>
 #include <time.h>
+#include <vector>
 
 struct SocketState
 {
@@ -25,6 +26,15 @@ struct Request
 	string body;
 };
 
+
+struct Response
+{
+	string codeStatus;
+	string  messageStatus;
+	vector<string> headers;
+	string body;
+};
+
 const int TIME_PORT = 27015;
 const int MAX_SOCKETS = 60;
 const int EMPTY = 0;
@@ -40,6 +50,8 @@ const int HEAD = 5;
 const int TRACE = 6;
 const int POST = 7;
 
+
+
 bool addSocket(SOCKET id, int what);
 void removeSocket(int index);
 void acceptConnection(int index);
@@ -51,6 +63,8 @@ string getPath(string httpRequest);
 string getParameter(string httpRequest);
 string getBody(string httpRequest);
 string getFullPath(Request httpRequest);
+Response getGETResponse(Request request);
+string createResponse(Response response);
 
 struct SocketState sockets[MAX_SOCKETS] = { 0 };
 int socketsCount = 0;
@@ -312,7 +326,6 @@ void receiveMessage(int index)
 		{
 			method = getMethod(sockets[index].buffer);
 			Request request = parseRequest(sockets[index].buffer);
-			string fullPath = getFullPath(request);
 
 			if (method == "GET")
 			{
@@ -374,15 +387,10 @@ void sendMessage(int index)
 
 	SOCKET msgSocket = sockets[index].id;
 	Request request = parseRequest(sockets[index].buffer);
+	Response response;
 
 	if (sockets[index].sendSubType == GET) {
-		string httpResponse = "HTTP/1.1 200 OK\r\n"
-			"Content-Type: text/html\r\n"
-			"Content-Length: 13\r\n"
-			"\r\n"
-			"Hello, World!";
-
-		strcpy(sendBuff, httpResponse.c_str());
+		response=getGETResponse(request);
 	}
 	else if (sockets[index].sendSubType == PUT) {
 
@@ -404,6 +412,7 @@ void sendMessage(int index)
 
 	}
 
+	strcpy(sendBuff,createResponse(response).c_str());
 
 	bytesSent = send(msgSocket, sendBuff, (int)strlen(sendBuff), 0);
 	if (SOCKET_ERROR == bytesSent)
@@ -441,9 +450,9 @@ string getMethod(string httpRequest)
 string getPath(string httpRequest) 
 {
 	int start = httpRequest.find('/');
-	int end=httpRequest.find('?');
+	int end=httpRequest.find('?')-1;
 
-	if (end == -1)
+	if (end == -2)
 		end = httpRequest.find(' ', start);
 
 	return httpRequest.substr(start+1, end-start);
@@ -475,6 +484,7 @@ string getBody(string httpRequest)
 string getFullPath(Request httpRequest) {
 	string fullPath;
 
+	string startPath = "C:/temp";
 	if (httpRequest.queryParameter != "") {
 		int index = httpRequest.queryParameter.find("=");
 		if (index != -1) {
@@ -482,7 +492,7 @@ string getFullPath(Request httpRequest) {
 			string queryValue = httpRequest.queryParameter.substr(index + 1);
 
 			if (queryKey == "lang" && (queryValue == "en" || queryValue == "fr" || queryValue == "he"))
-				fullPath = "C:\temp\\" + queryValue + "\\" + httpRequest.path;
+				fullPath = startPath + '/' + queryValue +'/'+ httpRequest.path;
 			else
 				fullPath = "400";
 
@@ -490,6 +500,8 @@ string getFullPath(Request httpRequest) {
 		else
 			fullPath = "400";
 	}
+	else
+		fullPath = startPath+'/' + httpRequest.path;
 
 	if (httpRequest.path == "")
 		fullPath = "400";
@@ -497,4 +509,72 @@ string getFullPath(Request httpRequest) {
 	return fullPath;
 }
 
+
+Response getGETResponse(Request request)
+{
+	int fileSize, bytesRead;
+	string filePath = getFullPath(request);
+	FILE* file = fopen(filePath.c_str(), "rb");
+	Response response;
+
+	if (file == NULL) {
+		cout<< "Failed to open file";
+		response.codeStatus = "500";
+	}
+
+	fseek(file, 0, SEEK_END);
+	fileSize = ftell(file);
+	fseek(file, 0, SEEK_SET);
+
+	char* buffer = (char*)malloc(fileSize + 1); 
+	if (buffer == NULL) {
+		fclose(file);
+		response.codeStatus = "500";
+	}
+
+	bytesRead = fread(buffer, 1, fileSize, file);
+	if (bytesRead != fileSize) {
+		fclose(file);
+		free(buffer);
+		response.codeStatus = "500";
+	}
+
+	buffer[fileSize] = '\0';
+	fclose(file);
+
+
+	string httpResponse = "HTTP/1.1 200 OK\r\n"
+		"Content-Type: text/html\r\n"
+		"Content-Length: 13\r\n"
+		"\r\n"
+		"Hello, World!";
+
+	response.body = buffer;
+	response.codeStatus = "200";
+	response.messageStatus = "OK";
+	response.headers.push_back("Content-Type: text/html");
+
+	sprintf(buffer, "Content-Length: %d", fileSize);
+
+	response.headers.push_back(buffer);
+
+	return response;
+}
+
+
+string createResponse(Response response) {
+	string httpResponse = "HTTP/1.1 ";
+	httpResponse +=response.codeStatus;
+	httpResponse +=" ";
+	httpResponse += response.messageStatus;
+	httpResponse += "\r\n";
+
+	for (int i = 0; i < response.headers.size(); i++) {
+		httpResponse += response.headers[i];
+		httpResponse += "\r\n";
+	}
+	httpResponse += "\r\n";
+	httpResponse += response.body;
+	return httpResponse;
+}
 
