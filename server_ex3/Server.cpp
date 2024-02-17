@@ -65,6 +65,7 @@ string getBody(string httpRequest);
 string getFullPath(Request httpRequest);
 Response getGETResponse(Request request);
 Response getPOSTResponse(Request request);
+Response getDELETEResponse(Request request);
 string createResponse(Response response);
 
 struct SocketState sockets[MAX_SOCKETS] = { 0 };
@@ -398,7 +399,7 @@ void sendMessage(int index)
 		response = getPOSTResponse(request);
 	}
 	else if (sockets[index].sendSubType == _DELETE) {
-
+		response = getDELETEResponse(request);
 	}
 	else if (sockets[index].sendSubType == HEAD) {
 
@@ -513,16 +514,21 @@ Response getGETResponse(Request request)
 	FILE* file;
 	string filePath = getFullPath(request);
 
+	response.headers.push_back("Content-Type: text/html");
+	response.headers.push_back("Content-Length: 0");
+
 	if (filePath == "400")
 	{
 		response.codeStatus = "400";
 		response.messageStatus = "Bad Request";
+		return response;
 	}
 	file = fopen(filePath.c_str(), "rb");
 	
 	if (file == NULL) {
 		response.codeStatus = "404";
 		response.messageStatus = "Not Found";
+		return response;
 	}
 
 	fseek(file, 0, SEEK_END);
@@ -534,6 +540,7 @@ Response getGETResponse(Request request)
 		fclose(file);
 		response.codeStatus = "500";
 		response.messageStatus = "Internal Server Error";
+		return response;
 	}
 
 	bytesRead = fread(buffer, 1, fileSize, file);
@@ -542,10 +549,8 @@ Response getGETResponse(Request request)
 		free(buffer);
 		response.codeStatus = "500";
 		response.messageStatus = "Internal Server Error";
-	}
-
-	if (response.codeStatus != "")
 		return response;
+	}
 
 
 
@@ -556,9 +561,8 @@ Response getGETResponse(Request request)
 	response.body = buffer;
 	response.codeStatus = "200";
 	response.messageStatus = "OK";
-	response.headers.push_back("Content-Type: text/html");
 	sprintf(buffer, "Content-Length: %d", fileSize);
-	response.headers.push_back(buffer);
+	response.headers[1] = buffer;
 
 	free(buffer);
 	return response;
@@ -574,8 +578,7 @@ Response getPOSTResponse(Request request)
 		response.codeStatus = "200";
 		response.messageStatus = "OK";
 		response.headers.push_back("Content-Type: text/html");
-		response.headers.push_back("Content-Length: 6");
-		response.body = "posted";
+		response.headers.push_back("Content-Length: 0");
 	}
 	else 
 	{
@@ -583,6 +586,13 @@ Response getPOSTResponse(Request request)
 		response.messageStatus = "No Content";
 	}
 	
+	return response;
+}
+
+
+Response getDELETEResponse(Request request)
+{
+	Response response;
 	return response;
 }
 
