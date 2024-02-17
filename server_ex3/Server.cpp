@@ -69,6 +69,7 @@ Response getPOSTResponse(Request request);
 Response getDELETEResponse(Request request);
 string createResponse(Response response);
 Response getPutResponse(Request request);
+Response getOptionsResponse(Request request);
 void resetRequestsBuffer(int index);
 
 struct SocketState sockets[MAX_SOCKETS] = { 0 };
@@ -408,6 +409,7 @@ void sendMessage(int index)
 
 	}
 	else if (sockets[index].sendSubType == OPTIONS) {
+		response = getOptionsResponse(request);
 
 	}
 	else if (sockets[index].sendSubType == TRACE) {
@@ -452,12 +454,12 @@ string getMethod(string httpRequest)
 string getPath(string httpRequest) 
 {
 	int start = httpRequest.find('/');
-	int end=httpRequest.find('?')-1;
+	int end=httpRequest.find('?');
 
-	if (end == -2)
+	if (end == -1)
 		end = httpRequest.find(' ', start);
 
-	return httpRequest.substr(start+1, end-start);
+	return httpRequest.substr(start+1, end-start-1);
 }
 
 
@@ -646,7 +648,72 @@ Response getPutResponse(Request request) {
 
 Response getDELETEResponse(Request request)
 {
+	string fullPath = getFullPath(request);
 	Response response;
+	response.codeStatus = "200";
+	response.messageStatus = "OK";
+	response.body = "";
+	response.headers.push_back("Content-Type: text/html");
+	response.headers.push_back("Content-Length: 0");
+
+
+	if (fullPath == "400") {
+		response.codeStatus = "400";
+		response.messageStatus = "Bad Request";
+		return response;
+	}
+
+	ifstream checkFile;
+	checkFile.open(fullPath);
+	if (!checkFile) {
+		response.codeStatus = "404";
+		response.messageStatus = "Not Found";
+		return response;
+	}
+	else
+		checkFile.close();
+
+	if (remove(fullPath.c_str()) != 0)
+	{
+		response.codeStatus = "500";
+		response.messageStatus = "Internal Server Error";
+	}
+	return response;
+}
+
+
+
+Response getOptionsResponse(Request request)
+{
+	Response response;
+	response.codeStatus = "200";
+	response.messageStatus = "OK";
+	response.body = "";
+	response.headers.push_back("Content-Type: text/html");
+	response.headers.push_back("Content-Length: 0");
+
+	if (request.path != "*") {
+
+		string fullPath = getFullPath(request);
+
+		if (fullPath == "400") {
+			response.codeStatus = "400";
+			response.messageStatus = "Bad Request";
+			return response;
+		}
+
+		ifstream checkFile;
+		checkFile.open(fullPath);
+		if (!checkFile) {
+			response.codeStatus = "404";
+			response.messageStatus = "Not Found";
+			return response;
+		}
+		else
+			checkFile.close();
+	}
+
+	response.headers.push_back("Allow: OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE\r\n");
 	return response;
 }
 
