@@ -64,6 +64,7 @@ string getParameter(string httpRequest);
 string getBody(string httpRequest);
 string getFullPath(Request httpRequest);
 Response getGETResponse(Request request);
+Response getPOSTResponse(Request request);
 string createResponse(Response response);
 
 struct SocketState sockets[MAX_SOCKETS] = { 0 };
@@ -318,8 +319,6 @@ void receiveMessage(int index)
 	else
 	{
 		sockets[index].buffer[len + bytesRecv] = '\0'; //add the null-terminating to make it a string
-		cout << "Server: Recieved: " << bytesRecv << " bytes of \"" << &sockets[index].buffer[len] << "\" message.\n";
-
 		sockets[index].len += bytesRecv;
 
 		if (sockets[index].len > 0)
@@ -396,8 +395,7 @@ void sendMessage(int index)
 
 	}
 	else if (sockets[index].sendSubType == POST) {
-		cout << "\n" <<request.body<< "\n";
-
+		response = getPOSTResponse(request);
 	}
 	else if (sockets[index].sendSubType == _DELETE) {
 
@@ -420,8 +418,6 @@ void sendMessage(int index)
 		cout << "Server: Error at send(): " << WSAGetLastError() << endl;
 		return;
 	}
-
-	cout << "Server: Sent: " << bytesSent << "\\" << strlen(sendBuff) << " bytes of \"" << sendBuff << "\" message.\n";
 
 	sockets[index].send = IDLE;
 }
@@ -513,13 +509,20 @@ string getFullPath(Request httpRequest) {
 Response getGETResponse(Request request)
 {
 	int fileSize, bytesRead;
-	string filePath = getFullPath(request);
-	FILE* file = fopen(filePath.c_str(), "rb");
 	Response response;
+	FILE* file;
+	string filePath = getFullPath(request);
 
+	if (filePath == "400")
+	{
+		response.codeStatus = "400";
+		response.messageStatus = "Bad Request";
+	}
+	file = fopen(filePath.c_str(), "rb");
+	
 	if (file == NULL) {
-		cout<< "Failed to open file";
-		response.codeStatus = "500";
+		response.codeStatus = "404";
+		response.messageStatus = "Not Found";
 	}
 
 	fseek(file, 0, SEEK_END);
@@ -530,6 +533,7 @@ Response getGETResponse(Request request)
 	if (buffer == NULL) {
 		fclose(file);
 		response.codeStatus = "500";
+		response.messageStatus = "Internal Server Error";
 	}
 
 	bytesRead = fread(buffer, 1, fileSize, file);
@@ -537,27 +541,48 @@ Response getGETResponse(Request request)
 		fclose(file);
 		free(buffer);
 		response.codeStatus = "500";
+		response.messageStatus = "Internal Server Error";
 	}
+
+	if (response.codeStatus != "")
+		return response;
+
+
 
 	buffer[fileSize] = '\0';
 	fclose(file);
 
 
-	string httpResponse = "HTTP/1.1 200 OK\r\n"
-		"Content-Type: text/html\r\n"
-		"Content-Length: 13\r\n"
-		"\r\n"
-		"Hello, World!";
-
 	response.body = buffer;
 	response.codeStatus = "200";
 	response.messageStatus = "OK";
 	response.headers.push_back("Content-Type: text/html");
-
 	sprintf(buffer, "Content-Length: %d", fileSize);
-
 	response.headers.push_back(buffer);
 
+	free(buffer);
+	return response;
+}
+
+
+Response getPOSTResponse(Request request)
+{
+	Response response;
+	if (request.body != "")
+	{
+		cout << "\n" << request.body << "\n";
+		response.codeStatus = "200";
+		response.messageStatus = "OK";
+		response.headers.push_back("Content-Type: text/html");
+		response.headers.push_back("Content-Length: 6");
+		response.body = "posted";
+	}
+	else 
+	{
+		response.codeStatus = "204";
+		response.messageStatus = "No Content";
+	}
+	
 	return response;
 }
 
