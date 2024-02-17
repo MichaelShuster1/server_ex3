@@ -371,34 +371,20 @@ void sendMessage(int index)
 	SOCKET msgSocket = sockets[index].id;
 	Request request = parseRequest(sockets[index].buffer);
 
-	if (sockets[index].sendSubType == SEND_TIME)
-	{
-		// Answer client's request by the current time string.
+	if (sockets[index].sendSubType == GET) {
+		string httpResponse = "HTTP/1.1 200 OK\r\n"
+			"Content-Type: text/html\r\n"
+			"Content-Length: 13\r\n"
+			"\r\n"
+			"Hello, World!";
 
-		// Get the current time.
-		time_t timer;
-		time(&timer);
-		// Parse the current time to printable string.
-		strcpy(sendBuff, ctime(&timer));
-		sendBuff[strlen(sendBuff) - 1] = 0; //to remove the new-line from the created string
-	}
-	else if (sockets[index].sendSubType == SEND_SECONDS)
-	{
-		// Answer client's request by the current time in seconds.
-
-		// Get the current time.
-		time_t timer;
-		time(&timer);
-		// Convert the number to string.
-		_itoa((int)timer, sendBuff, 10);
-	}
-	else if (sockets[index].sendSubType == GET) {
-
+		strcpy(sendBuff, httpResponse.c_str());
 	}
 	else if (sockets[index].sendSubType == PUT) {
 
 	}
 	else if (sockets[index].sendSubType == POST) {
+		cout << "\n" <<request.body<< "\n";
 
 	}
 	else if (sockets[index].sendSubType == _DELETE) {
