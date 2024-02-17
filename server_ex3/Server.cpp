@@ -397,7 +397,6 @@ void sendMessage(int index)
 	}
 	else if (sockets[index].sendSubType == PUT) {
 		response = getPutResponse(request);
-		resetRequestsBuffer(index);
 	}
 	else if (sockets[index].sendSubType == POST) {
 		cout << "\n" <<request.body<< "\n";
@@ -416,6 +415,7 @@ void sendMessage(int index)
 
 	}
 
+
 	strcpy(sendBuff,createResponse(response).c_str());
 
 	bytesSent = send(msgSocket, sendBuff, (int)strlen(sendBuff), 0);
@@ -428,6 +428,7 @@ void sendMessage(int index)
 	cout << "Server: Sent: " << bytesSent << "\\" << strlen(sendBuff) << " bytes of \"" << sendBuff << "\" message.\n";
 
 	sockets[index].send = IDLE;
+	resetRequestsBuffer(index);
 }
 
 
