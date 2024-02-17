@@ -52,6 +52,7 @@ string getMethod(string httpRequest);
 string getPath(string httpRequest);
 string getParameter(string httpRequest);
 string getBody(string httpRequest);
+string getFullPath(Request httpRequest);
 
 struct SocketState sockets[MAX_SOCKETS] = { 0 };
 int socketsCount = 0;
@@ -312,6 +313,9 @@ void receiveMessage(int index)
 		if (sockets[index].len > 0)
 		{
 			method = getMethod(sockets[index].buffer);
+			Request request = parseRequest(sockets[index].buffer);
+			string fullPath = getFullPath(request);
+
 			if (method == "GET")
 			{
 				sockets[index].send = SEND;
@@ -484,17 +488,17 @@ string getBody(string httpRequest)
 	return "";
 }
 
-string getFullPath(Request request) {
+string getFullPath(Request httpRequest) {
 	string fullPath;
 
-	if (request.queryParameter != "") {
-		int index = request.queryParameter.find("?");
+	if (httpRequest.queryParameter != "") {
+		int index = httpRequest.queryParameter.find("=");
 		if (index != -1) {
-			string queryKey = request.queryParameter.substr(0, index);
-			string queryValue = request.queryParameter.substr(index + 1);
+			string queryKey = httpRequest.queryParameter.substr(0, index);
+			string queryValue = httpRequest.queryParameter.substr(index + 1);
 
 			if (queryKey == "lang" && (queryValue == "en" || queryValue == "fr" || queryValue == "he"))
-				fullPath = "C:\temp\\" + queryValue + "\\" + request.path;
+				fullPath = "C:\temp\\" + queryValue + "\\" + httpRequest.path;
 			else
 				fullPath = "400";
 
@@ -503,7 +507,7 @@ string getFullPath(Request request) {
 			fullPath = "400";
 	}
 
-	if (request.path == "")
+	if (httpRequest.path == "")
 		fullPath = "400";
 
 	return fullPath;
