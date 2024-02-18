@@ -410,16 +410,13 @@ void sendMessage(int index)
 	}
 	else if (sockets[index].sendSubType == HEAD) {
 		response = getHeadResponse(request);
-
 	}
 	else if (sockets[index].sendSubType == OPTIONS) {
 		response = getOptionsResponse(request);
-
 	}
 	else if (sockets[index].sendSubType == TRACE) {
 		string buffer(sockets[index].buffer);
 		response = getTraceResponse(buffer);
-
 	}
 
 
@@ -574,10 +571,10 @@ Response getGETResponse(Request request)
 	response.body = buffer;
 	response.codeStatus = "200";
 	response.messageStatus = "OK";
+	free(buffer);
 	sprintf(buffer, "Content-Length: %d", fileSize);
 	response.headers[1] = buffer;
 
-	free(buffer);
 	return response;
 }
 
