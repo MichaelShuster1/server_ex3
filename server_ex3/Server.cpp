@@ -18,6 +18,7 @@ struct SocketState
 	int sendSubType;	// Sending sub-type
 	char buffer[1000];
 	int len;
+	time_t timer;
 };
 
 struct Request
@@ -192,7 +193,18 @@ void main()
 		for (int i = 0; i < MAX_SOCKETS; i++)
 		{
 			if (sockets[i].send == SEND)
-				FD_SET(sockets[i].id, &waitSend);
+			{
+				time_t currentTime;
+				time(&currentTime);
+				if (currentTime - sockets[i].timer > 120)
+				{
+					closesocket(sockets[i].id);
+					removeSocket(i);
+					FD_CLR(sockets[i].id, &waitRecv);
+				}
+				else
+					FD_SET(sockets[i].id, &waitSend);
+			}
 		}
 
 		//
@@ -311,6 +323,8 @@ void receiveMessage(int index)
 	int len = sockets[index].len;
 	int bytesRecv = recv(msgSocket, &sockets[index].buffer[len], sizeof(sockets[index].buffer) - len, 0);
 
+	time(&sockets[index].timer);
+
 	if (SOCKET_ERROR == bytesRecv)
 	{
 		cout << "Server: Error at recv(): " << WSAGetLastError() << endl;
@@ -376,12 +390,6 @@ void receiveMessage(int index)
 				sockets[index].sendSubType = HEAD;
 				return;
 			}
-			else if (strncmp(sockets[index].buffer, "Exit", 4) == 0)
-			{
-				closesocket(msgSocket);
-				removeSocket(index);
-				return;
-			}
 		}
 	}
 
@@ -439,41 +447,44 @@ struct Request parseRequest(string httpRequest)
 {
 	struct Request request;
 
-	request.method = getMethod(httpRequest);
-	request.path = getPath(httpRequest);
-	request.queryParameter = getParameter(httpRequest);
+	int newline = httpRequest.find("\r\n");
+	string requestLine = httpRequest.substr(0, newline);
+
+	request.method = getMethod(requestLine);
+	request.path = getPath(requestLine);
+	request.queryParameter = getParameter(requestLine);
 	request.body = getBody(httpRequest);
 
 	return request;
 }
 
 
-string getMethod(string httpRequest) 
+string getMethod(string requestLine)
 {
-	int firstSpace = httpRequest.find(' ');
-	return httpRequest.substr(0, firstSpace);
+	int firstSpace = requestLine.find(' ');
+	return requestLine.substr(0, firstSpace);
 }
 
-string getPath(string httpRequest) 
+string getPath(string requestLine)
 {
-	int start = httpRequest.find('/');
-	int end=httpRequest.find('?');
+	int start = requestLine.find('/');
+	int end= requestLine.find('?');
 
 	if (end == -1)
-		end = httpRequest.find(' ', start);
+		end = requestLine.find(' ', start);
 
-	return httpRequest.substr(start+1, end-start-1);
+	return requestLine.substr(start+1, end-start-1);
 }
 
 
-string getParameter(string httpRequest) 
+string getParameter(string requestLine)
 {
-	int start = httpRequest.find('?')+1;
+	int start = requestLine.find('?')+1;
 	if (start == 0)
 		return "";
 
-	int end = httpRequest.find(' ',start);
-	return httpRequest.substr(start, end-start);
+	int end = requestLine.find(' ',start);
+	return requestLine.substr(start, end-start);
 }
 
 
@@ -554,41 +565,6 @@ Response getGETResponse(Request request)
 	content.resize(fileSize);
 	file.read(&content[0], fileSize);
 
-	/*
-	file = fopen(fullPath.c_str(), "rb");
-	
-	if (file == NULL) {
-		response.codeStatus = "404";
-		response.messageStatus = "Not Found";
-		return response;
-	}
-
-	fseek(file, 0, SEEK_END);
-	fileSize = ftell(file);
-	fseek(file, 0, SEEK_SET);
-
-	char* buffer = (char*)malloc(fileSize + 1); 
-	if (buffer == NULL) {
-		fclose(file);
-		response.codeStatus = "500";
-		response.messageStatus = "Internal Server Error";
-		return response;
-	}
-
-	bytesRead = fread(buffer, 1, fileSize, file);
-	if (bytesRead != fileSize) {
-		fclose(file);
-		free(buffer);
-		response.codeStatus = "500";
-		response.messageStatus = "Internal Server Error";
-		return response;
-	}
-
-
-
-	buffer[fileSize] = '\0';
-	fclose(file);
-	*/
 
 
 	response.body = content;
