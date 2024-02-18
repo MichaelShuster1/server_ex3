@@ -519,21 +519,43 @@ string getFullPath(Request httpRequest) {
 
 Response getGETResponse(Request request)
 {
-	int fileSize, bytesRead;
 	Response response;
-	FILE* file;
-	string filePath = getFullPath(request);
-
+	string fullPath = getFullPath(request);
+	string content, contentLength;
+	response.codeStatus = "200";
+	response.messageStatus = "OK";
+	response.body = "";
 	response.headers.push_back("Content-Type: text/html");
 	response.headers.push_back("Content-Length: 0");
 
-	if (filePath == "400")
+
+	if (fullPath== "400")
 	{
 		response.codeStatus = "400";
 		response.messageStatus = "Bad Request";
 		return response;
 	}
-	file = fopen(filePath.c_str(), "rb");
+
+	ifstream file;
+	file.open(fullPath);
+	if (!file) {
+		response.codeStatus = "404";
+		response.messageStatus = "Not Found";
+		return response;
+	}
+	
+
+
+	file.seekg(0, ios::end);
+	int fileSize = file.tellg();
+	file.seekg(0, ios::beg);
+
+
+	content.resize(fileSize);
+	file.read(&content[0], fileSize);
+
+	/*
+	file = fopen(fullPath.c_str(), "rb");
 	
 	if (file == NULL) {
 		response.codeStatus = "404";
@@ -566,14 +588,13 @@ Response getGETResponse(Request request)
 
 	buffer[fileSize] = '\0';
 	fclose(file);
+	*/
 
 
-	response.body = buffer;
-	response.codeStatus = "200";
-	response.messageStatus = "OK";
-	free(buffer);
-	sprintf(buffer, "Content-Length: %d", fileSize);
-	response.headers[1] = buffer;
+	response.body = content;
+	contentLength = "Content-Length: ";
+	contentLength += to_string(fileSize);
+	response.headers[1] = contentLength;
 
 	return response;
 }
