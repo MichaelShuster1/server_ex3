@@ -1,4 +1,4 @@
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
+﻿#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 using namespace std;
@@ -184,27 +184,32 @@ void main()
 		FD_ZERO(&waitRecv);
 		for (int i = 0; i < MAX_SOCKETS; i++)
 		{
-			if ((sockets[i].recv == LISTEN) || (sockets[i].recv == RECEIVE))
+			if(sockets[i].recv == LISTEN)
 				FD_SET(sockets[i].id, &waitRecv);
+			else if (sockets[i].recv == RECEIVE) 
+			{
+				if (sockets[i].send == IDLE|| sockets[i].send == SEND) {
+					time_t currentTime;
+					time(&currentTime);
+					if (currentTime - sockets[i].timer > 120)
+					{
+						closesocket(sockets[i].id);
+						removeSocket(i);
+					}
+					else
+						FD_SET(sockets[i].id, &waitRecv);
+				}
+				else
+					FD_SET(sockets[i].id, &waitRecv);
+			}
 		}
 
 		fd_set waitSend;
 		FD_ZERO(&waitSend);
 		for (int i = 0; i < MAX_SOCKETS; i++)
 		{
-			if (sockets[i].send == SEND)
-			{
-				time_t currentTime;
-				time(&currentTime);
-				if (currentTime - sockets[i].timer > 120)
-				{
-					closesocket(sockets[i].id);
-					removeSocket(i);
-					FD_CLR(sockets[i].id, &waitRecv);
-				}
-				else
-					FD_SET(sockets[i].id, &waitSend);
-			}
+			if(sockets[i].send==SEND)
+				FD_SET(sockets[i].id, &waitSend);
 		}
 
 		//
@@ -212,8 +217,12 @@ void main()
 		// Note: First argument is ignored. The fourth is for exceptions.
 		// And as written above the last is a timeout, hence we are blocked if nothing happens.
 		//
+		struct timeval timeout;
+		timeout.tv_sec = 5;  // 5 seconds
+		timeout.tv_usec = 0;
+
 		int nfd;
-		nfd = select(0, &waitRecv, &waitSend, NULL, NULL);
+		nfd = select(0, &waitRecv, &waitSend, NULL,&timeout);
 		if (nfd == SOCKET_ERROR)
 		{
 			cout << "Server: Error at select(): " << WSAGetLastError() << endl;
@@ -270,6 +279,7 @@ bool addSocket(SOCKET id, int what)
 			sockets[i].recv = what;
 			sockets[i].send = IDLE;
 			sockets[i].len = 0;
+			time(&sockets[i].timer);
 			socketsCount++;
 			return (true);
 		}
@@ -509,6 +519,7 @@ string getFullPath(Request httpRequest) {
 			string queryKey = httpRequest.queryParameter.substr(0, index);
 			string queryValue = httpRequest.queryParameter.substr(index + 1);
 
+
 			if (queryKey == "lang" && (queryValue == "en" || queryValue == "fr" || queryValue == "he"))
 				fullPath = startPath + '/' + queryValue +'/'+ httpRequest.path;
 			else
@@ -536,8 +547,19 @@ Response getGETResponse(Request request)
 	response.codeStatus = "200";
 	response.messageStatus = "OK";
 	response.body = "";
-	response.headers.push_back("Content-Type: text/html");
+	response.headers.push_back("Content-Type: text/html; charset=utf-8");
 	response.headers.push_back("Content-Length: 0");
+
+
+
+	
+	if(fullPath.find("/he/")!=-1)
+		response.headers.push_back("Content-Language: he");
+
+	else if (fullPath.find("/fr/") != -1)
+		response.headers.push_back("Content-Language: fr");
+
+
 
 
 	if (fullPath== "400")
@@ -565,11 +587,14 @@ Response getGETResponse(Request request)
 	content.resize(fileSize);
 	file.read(&content[0], fileSize);
 
+	while (!content.empty() && content.back()=='\0') {
+		content.pop_back();
+	}
 
 
 	response.body = content;
 	contentLength = "Content-Length: ";
-	contentLength += to_string(fileSize);
+	contentLength += to_string(content.length());
 	response.headers[1] = contentLength;
 
 	return response;
